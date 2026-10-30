@@ -48,7 +48,7 @@ def process(live: bool) -> int:
     return 0
 
 
-def poll_once(feeds: dict[str, str], landed_reference_day: set[str]) -> int:
+def poll_once(feeds: dict[str, str], landed_reference_day: set[tuple[str, str]]) -> int:
     """Land one snapshot of every realtime feed; reference feeds once per day. Returns next sleep."""
     ttl = 60
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -102,8 +102,8 @@ def report() -> int:
     print("\n== Highest last-mile risk (zone x hour) ==")
     print(con.execute("""SELECT zone_label, day_type, hour_of_day AS hr, observed_hours AS n,
                                 pct_hours_low_supply AS p_low, avg_bike_supply AS supply, avg_free_ebikes_usable AS ebikes
-                         FROM gold.mart_last_mile_risk WHERE observed_hours >= 2 AND zone_label IS NOT NULL
-                         ORDER BY p_low DESC, supply LIMIT 10""").df().to_string(**pd_opts))
+                         FROM gold.mart_last_mile_risk WHERE observed_hours >= ? AND zone_label IS NOT NULL
+                         ORDER BY p_low DESC, supply LIMIT 10""", [SETTINGS.min_observed_hours]).df().to_string(**pd_opts))
     print("\n== Weather effect ==")
     print(con.execute("""SELECT weather_condition, temp_band, day_part, observed_hours AS n, avg_station_pct_empty AS pct_empty,
                                 avg_bikes_per_station AS bikes, avg_churn_per_station_hour AS churn

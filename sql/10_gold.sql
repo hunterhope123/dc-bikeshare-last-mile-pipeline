@@ -35,7 +35,7 @@ SELECT
     ROUND((CAST(split_part(z.zone_id, '_', 2) AS BIGINT) + 0.5) * {zone_lon_deg}, 5) AS center_lon,
     COUNT(s.station_id)                                             AS n_stations,
     COALESCE(SUM(s.capacity), 0)                                    AS total_docks,
-    array_to_string(list_slice(list(s.name ORDER BY s.capacity DESC) FILTER (WHERE s.name IS NOT NULL), 1, 2), ' / ') AS zone_label,
+    array_to_string(list_slice(list(s.name ORDER BY s.capacity DESC, s.name) FILTER (WHERE s.name IS NOT NULL), 1, 2), ' / ') AS zone_label,
     any_value(s.region_name)                                        AS region_name
 FROM zones z
 LEFT JOIN gold.dim_station s USING (zone_id)

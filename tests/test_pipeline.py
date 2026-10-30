@@ -1,5 +1,5 @@
 """End-to-end and unit tests. Runs the real pipeline on 2 days of synthetic data
-in a temp directory.  Run:  pytest -q   (from part2_bikeshare/)"""
+in a temp directory.  Run:  pytest -q   (from the repo root)"""
 from __future__ import annotations
 
 import math
@@ -89,3 +89,15 @@ def test_dst_fall_back_hours_stay_distinct():
     b = datetime(2026, 11, 1, 6, 30, tzinfo=timezone.utc).timestamp()
     assert silver._local(a, s) == silver._local(b, s)          # same local wall clock
     assert silver._utc(a) != silver._utc(b)                    # which is why gold keys on UTC
+
+
+def test_single_day_run_shows_risk_with_lower_threshold(tmp_path):
+    # one day of data sees each hour once: hidden at the default (2), shown at 1
+    s = Settings(data_dir=tmp_path, min_observed_hours=1)
+    fixtures.generate(s, days=1)
+    con = silver.connect(s)
+    silver.load_new_files(con, s)
+    gold.build(con, s)
+    assert ai_layer.build_fact_pack(con, s)["highest_risk_zone_hours"]
+    assert not ai_layer.build_fact_pack(con, Settings(data_dir=tmp_path))["highest_risk_zone_hours"]
+    con.close()

@@ -1,5 +1,7 @@
 # DC Bikeshare Last-Mile Pipeline
 
+[![tests](https://github.com/hunterhope123/dc-bikeshare-last-mile-pipeline/actions/workflows/tests.yml/badge.svg)](https://github.com/hunterhope123/dc-bikeshare-last-mile-pipeline/actions/workflows/tests.yml)
+
 An end-to-end data pipeline over Capital Bikeshare's live GBFS feeds (Washington, DC), enriched with hourly weather and holidays, with a data-quality gate and an AI layer. It answers one practical question for travellers: **can I find a usable bike within a 5-minute walk, here, at this hour?**
 
 **Stack:** Python, DuckDB, SQL, pandas, pytest, Open-Meteo API, optional Anthropic API. Medallion architecture (bronze, silver, gold) that maps directly to Databricks/Delta or Snowflake/dbt.
@@ -12,10 +14,12 @@ pip install -r requirements.txt
 python run_pipeline.py live --hours 24   # poll the real feeds, process every 30 min
 python run_pipeline.py report            # headline results from gold
 python run_pipeline.py fixtures          # offline demo on synthetic data (no network)
-pytest -q                                # 8 tests
+pytest -q                                # 9 tests
 ```
 
 Optional: `export ANTHROPIC_API_KEY=...` to have the briefing written by Claude; otherwise a deterministic template is used.
+
+The risk table only shows a zone and hour once it has been seen on at least 2 days of the same type (weekday or weekend), which takes about 48 weekday hours of collection. After a shorter run, use `MIN_OBSERVED_HOURS=1 python run_pipeline.py report`; each figure then rests on a single day.
 
 ## Findings
 
@@ -39,7 +43,7 @@ The pipeline recovers the commute pattern built into the synthetic data. Residen
 
 **Next-hour prediction.** The target hour was Tuesday 00:00, and every station came out Low risk. That is expected: stations don't empty overnight in the synthetic data, and each station has only 2 hours of matching history, so the shrinkage toward zone rates keeps estimates conservative.
 
-**Limitation to note for a live run.** The risk table only shows zone/hour combinations seen on at least 2 days of the same day type (`observed_hours >= 2`). A run needs about 48 weekday hours before that table fills.
+**Limitation to note for a live run.** By default, the risk table only shows zone/hour combinations seen on at least 2 days of the same day type. A run needs about 48 weekday hours before that table fills; for a shorter run, set `MIN_OBSERVED_HOURS=1` (see Run it).
 
 ## Pipeline
 
@@ -58,7 +62,7 @@ Full diagram and production mapping (Azure/Databricks, Snowflake): [`docs/archit
 
 ## The question this pipeline answers
 
-> **If an traveller arrives in a DC neighbourhood at a given hour, how likely are they to find a usable bike within about a 5-minute walk, and how do time of day, day type and weather change that?**
+> **If a traveller arrives in a DC neighbourhood at a given hour, how likely are they to find a usable bike within about a 5-minute walk, and how do time of day, day type and weather change that?**
 
 **Why this question.** A travel company cares about last-mile transport for its customers. "How many bikes are in DC" isn't something a traveller can act on. What matters is whether there's a bike near them when they arrive. That answer can drive product decisions: when to suggest bikeshare in a trip itinerary, and when to suggest Metro or rideshare instead. It also connects back to the travel warehouse project, because its hotel locations can be joined to these zones.
 

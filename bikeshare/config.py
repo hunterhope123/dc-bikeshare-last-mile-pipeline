@@ -50,6 +50,10 @@ class Settings:
     min_usable_range_m: int = 3000
     # A station that hasn't reported in this long is treated as offline, not empty.
     station_stale_minutes: int = 60
+    # Report/briefing only show a zone x day type x hour once it has been seen on
+    # this many separate hours (i.e. days). 2 needs ~48 weekday hours of data;
+    # set MIN_OBSERVED_HOURS=1 to see results from a single-day run.
+    min_observed_hours: int = int(os.getenv("MIN_OBSERVED_HOURS", "2"))
 
     @property
     def bronze_dir(self) -> Path:

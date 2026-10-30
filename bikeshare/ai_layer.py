@@ -48,17 +48,17 @@ def _rows(con, sql: str) -> list[dict]:
     return out
 
 
-def build_fact_pack(con) -> dict:
+def build_fact_pack(con, s: Settings = SETTINGS) -> dict:
     window = _rows(con, """SELECT MIN(hour_local) AS first_hour_local, MAX(hour_local) AS last_hour_local,
                                   COUNT(*) AS hours_observed FROM gold.dim_hour""")[0]
     return {
         "data_window": window,
         "stations": _rows(con, "SELECT COUNT(*) AS n FROM gold.dim_station")[0]["n"],
-        "highest_risk_zone_hours": _rows(con, """
+        "highest_risk_zone_hours": _rows(con, f"""
             SELECT zone_label, region_name, day_type, hour_of_day, observed_hours,
                    pct_hours_low_supply, avg_bike_supply, avg_free_ebikes_usable
             FROM gold.mart_last_mile_risk
-            WHERE observed_hours >= 2 AND zone_label IS NOT NULL
+            WHERE observed_hours >= {int(s.min_observed_hours)} AND zone_label IS NOT NULL
             ORDER BY pct_hours_low_supply DESC, avg_bike_supply ASC LIMIT 6"""),
         "best_covered_zones_am_peak": _rows(con, """
             SELECT zone_label, ROUND(AVG(avg_bike_supply),1) AS avg_bike_supply
@@ -116,7 +116,7 @@ def _llm_briefing(facts: dict) -> tuple[str, str]:
 
 
 def generate_briefing(con, s: Settings = SETTINGS) -> str:
-    facts = build_fact_pack(con)
+    facts = build_fact_pack(con, s)
     text, model = None, "template_v1"
     if os.getenv("ANTHROPIC_API_KEY"):
         try:

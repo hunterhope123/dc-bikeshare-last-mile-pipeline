@@ -4,7 +4,7 @@ Writes bronze files through the SAME `bronze.land()` function the live poller
 uses, so everything downstream is exercised exactly as in production.
 Payload shapes follow the GBFS 2.3 JSON schemas (MobilityData/gbfs-json-schema).
 
-Numbers are made up. Use `--mode live` for real findings.
+Numbers are made up. Use `python run_pipeline.py live` for real findings.
 
 Built-in data problems (so the quality checks have something to catch):
   * station 9999 appears in station_status but not station_information (orphan)
