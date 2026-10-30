@@ -1,0 +1,8 @@
+duckdb>=1.1
+pandas>=2.0
+pyarrow>=14
+requests>=2.31
+holidays>=0.50
+pytest>=8
+# optional, for the LLM-written briefing:
+# anthropic>=0.40
