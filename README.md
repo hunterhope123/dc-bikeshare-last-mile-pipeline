@@ -19,7 +19,27 @@ Optional: `export ANTHROPIC_API_KEY=...` to have the briefing written by Claude;
 
 ## Findings
 
-_Add results from a live run here: highest-risk zones/hours, weekday vs weekend, wet vs dry._
+> **These numbers come from synthetic data** (`python run_pipeline.py fixtures`): 4 days, 58 made-up stations, 5-minute snapshots. They show what the pipeline produces and that each stage works. They are not claims about real DC bikeshare. Run `live` to get real findings.
+
+**Run summary.** 1,152 station snapshots and 1,152 free-bike snapshots went from bronze to gold. That is 67,968 station-status rows and 149,435 free-bike rows. 115 free bikes with bad coordinates were quarantined (0.05% of records). One duplicate poll was absorbed by the primary key. The quality gate returned 9 PASS and 1 WARN (`orphan_station_ids = 1`, the planted station 9999), so gold was published with the caveat shown in the briefing.
+
+**Highest last-mile risk** (zone x day type x hour; n = observed hours):
+
+| Zone | Day type | Hour | n | Hours with < 2 bikes | Avg supply |
+|---|---|---|---|---|---|
+| Downtown 01 / Downtown 11 | Weekday | 18:00 | 2 | 100% | 1.6 |
+| Downtown 07 / Downtown 18 | Weekday | 18:00 | 2 | 50% | 1.5 |
+| Residential 28 | Weekday | 08:00 | 2 | 50% | 2.6 |
+| Residential 34 | Weekday | 08:00 | 2 | 50% | 2.8 |
+| Tourist 52 | Weekend/Holiday | 13:00 | 2 | 50% | 3.3 |
+
+The pipeline recovers the commute pattern built into the synthetic data. Residential zones drain in the weekday morning peak (07:00-09:00), downtown zones drain in the evening peak (18:00), and the tourist zone is tightest on weekend afternoons. For a traveller, those are the zone/hour combinations where the product should suggest Metro or rideshare instead of a bike.
+
+**Weather effect.** Stations were empty 0% of wet hours vs. about 5% of dry hours. Dry PM peak was the worst slice: 9.7-11.2% empty. In the synthetic data, rain flattens the demand curve, so fewer stations run dry. The churn usage proxy barely differs (7.89 vs. 7.53 bike moves per station-hour) because snapshot noise dominates it. Real data is needed to test whether churn is a usable demand signal.
+
+**Next-hour prediction.** The target hour was Tuesday 00:00, and every station came out Low risk. That is expected: stations don't empty overnight in the synthetic data, and each station has only 2 hours of matching history, so the shrinkage toward zone rates keeps estimates conservative.
+
+**Limitation to note for a live run.** The risk table only shows zone/hour combinations seen on at least 2 days of the same day type (`observed_hours >= 2`). A run needs about 48 weekday hours before that table fills.
 
 ## Pipeline
 
