@@ -42,8 +42,9 @@ class Settings:
     # Bounding box for the CaBi service area (DC, MD and VA suburbs). Points
     # outside are quarantined (covers 0,0 and swapped lat/lon).
     bbox: tuple[float, float, float, float] = (38.70, -77.45, 39.20, -76.85)  # min_lat, min_lon, max_lat, max_lon
-    # Walkable zone: ~0.005 deg lat x 0.006 deg lon ~= 550m x 520m in DC,
-    # about a 5-7 minute walk across. Simple grid, no geo library needed.
+    # Proximity zone: ~0.005 deg lat x 0.006 deg lon ~= 550m x 520m in DC.
+    # A straight-line estimate of "about a 5-minute walk", not a walking route
+    # (rivers and highways are ignored). Simple grid, no geo library needed.
     zone_lat_deg: float = 0.005
     zone_lon_deg: float = 0.006
     # An e-bike with less than this range isn't a realistic last-mile option.

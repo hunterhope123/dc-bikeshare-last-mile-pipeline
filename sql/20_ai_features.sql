@@ -7,8 +7,11 @@
 --   2. Shrunk toward the zone's rate (and then the system rate) when the
 --      station has few observations: p = (n*p_station + m*p_prior)/(n + m).
 --      Stops a station seen empty once in 1 hour from showing 100% risk.
---   3. Adjusted by the observed wet-vs-dry ratio if the next-hour weather
---      forecast is wet.
+--   3. If the next-hour forecast is wet, scaled by the observed wet-vs-dry
+--      empty ratio - but only once there are at least {min_wet_hours} wet hours
+--      of history, and capped to [0.5, 2.0]. With less evidence the factor
+--      is 1.0 (no weather adjustment), so a handful of rainy hours can't
+--      swing the estimate. Its direction comes from the data, not an assumption.
 -- This is the benchmark a gradient-boosted model (station, hour, dow,
 -- weather, lagged availability) would have to beat in production, tracked
 -- in MLflow. With only days of data, a heavier model would overfit.
@@ -62,9 +65,13 @@ system_rate AS (
     FROM hist h JOIN tgt2 t ON t.hour_of_day = h.hour_of_day AND t.day_type = h.day_type
 ),
 weather_factor AS (     -- how much more/less often stations are empty when wet vs dry
-    SELECT COALESCE(
-             AVG(avg_station_pct_empty) FILTER (WHERE weather_condition = 'Wet')
-             / NULLIF(AVG(avg_station_pct_empty) FILTER (WHERE weather_condition = 'Dry'), 0), 1.0) AS wet_to_dry
+    SELECT CASE
+             WHEN COALESCE(SUM(observed_hours) FILTER (WHERE weather_condition = 'Wet'), 0) < {min_wet_hours}
+               THEN 1.0                                   -- not enough wet history to trust a ratio
+             ELSE LEAST(2.0, GREATEST(0.5, COALESCE(
+                    AVG(avg_station_pct_empty) FILTER (WHERE weather_condition = 'Wet')
+                    / NULLIF(AVG(avg_station_pct_empty) FILTER (WHERE weather_condition = 'Dry'), 0), 1.0)))
+           END AS wet_to_dry
     FROM gold.mart_weather_effect
 )
 SELECT
@@ -81,7 +88,8 @@ SELECT
         ((s.n_obs * s.p_station + 3 * COALESCE(z.p_zone, sr.p_system)) / (s.n_obs + 3))
         * CASE WHEN t.forecast_condition = 'Wet' THEN wf.wet_to_dry ELSE 1.0 END
     )), 3)                                   AS p_empty_next_hour,
-    'baseline_v1_shrunk_hourly_rate'         AS model_version,
+    ROUND(CASE WHEN t.forecast_condition = 'Wet' THEN wf.wet_to_dry ELSE 1.0 END, 3) AS weather_factor,
+    'baseline_v2_shrunk_hourly_rate'         AS model_version,
     now()                                    AS scored_at
 FROM station_rate s
 JOIN gold.dim_station d USING (station_id)
