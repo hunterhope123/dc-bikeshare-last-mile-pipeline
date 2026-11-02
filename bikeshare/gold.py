@@ -7,12 +7,13 @@ GOLD_SQL = ("10_gold.sql", "20_ai_features.sql")
 SERVING_TABLES = ("dim_station", "dim_zone", "dim_hour", "fct_station_hour", "fct_zone_hour",
                   "mart_last_mile_risk", "mart_weather_effect", "pred_station_empty_next_hour")
 LOW_SUPPLY_THRESHOLD = 2   # fewer than 2 bikes in the zone = can't count on getting one
+MIN_WET_HOURS = 24         # wet hours of history needed before rain adjusts the prediction
 
 
 def render(sql: str, s: Settings) -> str:
     return sql.format(zone_lat_deg=s.zone_lat_deg, zone_lon_deg=s.zone_lon_deg,
                       min_usable_range_m=s.min_usable_range_m,
-                      low_supply_threshold=LOW_SUPPLY_THRESHOLD)
+                      low_supply_threshold=LOW_SUPPLY_THRESHOLD, min_wet_hours=MIN_WET_HOURS)
 
 
 def build(con, s: Settings = SETTINGS) -> None:

@@ -101,3 +101,24 @@ def test_single_day_run_shows_risk_with_lower_threshold(tmp_path):
     assert ai_layer.build_fact_pack(con, s)["highest_risk_zone_hours"]
     assert not ai_layer.build_fact_pack(con, Settings(data_dir=tmp_path))["highest_risk_zone_hours"]
     con.close()
+
+
+def test_weather_adjustment_needs_enough_wet_hours(tmp_path, monkeypatch):
+    s = Settings(data_dir=tmp_path)
+    fixtures.generate(s, days=2)
+    con = silver.connect(s)
+    silver.load_new_files(con, s)
+    gold.build(con, s)
+    # force a wet forecast for the hour being predicted
+    con.execute("""UPDATE silver.weather_hourly SET precipitation_mm = 5, weather_code = 61
+                   WHERE hour_ts_utc = (SELECT MAX(hour_utc) + INTERVAL 1 HOUR FROM gold.fct_station_hour)""")
+    gold.build(con, s)
+    assert q(con, "SELECT ANY_VALUE(forecast_condition) FROM gold.pred_station_empty_next_hour") == "Wet"
+    # the dummy data has fewer than 24 wet hours, so rain must not move the prediction
+    assert q(con, "SELECT MAX(ABS(weather_factor - 1.0)) FROM gold.pred_station_empty_next_hour") == 0
+    # with the evidence bar removed, the observed ratio applies, capped to [0.5, 2.0]
+    monkeypatch.setattr(gold, "MIN_WET_HOURS", 0)
+    gold.build(con, s)
+    f = q(con, "SELECT ANY_VALUE(weather_factor) FROM gold.pred_station_empty_next_hour")
+    assert 0.5 <= f <= 2.0 and f != 1.0
+    con.close()
